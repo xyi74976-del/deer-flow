@@ -20,6 +20,20 @@ This skill analyzes user-uploaded Excel/CSV files using DuckDB — an in-process
 
 ## Workflow
 
+### Prepare Dependencies
+
+The selected Python environment must have DuckDB and openpyxl installed before
+analysis starts. If the script reports a missing dependency, prepare that same
+environment explicitly:
+
+```bash
+python -m pip install duckdb openpyxl
+```
+
+The analysis script does not run package installers itself, including on cache
+hits or during concurrent invocations. Excel loading retains its existing DuckDB
+spatial-extension requirement.
+
 ### Step 1: Understand Requirements
 
 When a user uploads data files and requests analysis, identify:
@@ -84,6 +98,21 @@ Supported output formats (auto-detected from extension):
 - `.csv` — Comma-separated values
 - `.json` — JSON array of records
 - `.md` — Markdown table
+
+### Cache and SQL lifetime
+
+Each invocation builds a private database on a cache miss, closes its writer,
+and publishes a complete database generation with its matching table map.
+Concurrent invocations can read the same completed generation; they never share
+a database still being loaded. Unreadable or inconsistent cache entries are
+rebuilt. Analysis connections are read-only on both the first invocation and
+cache hits: use SELECT queries and temporary views, rather than mutating cached
+tables. Export results with `--output-file`.
+
+Legacy two-file caches are ignored and rebuilt in a versioned namespace. Old
+generations remain available to readers during concurrent publication or repair.
+The cache does not snapshot source files or enforce a disk quota; avoid editing
+inputs while loading, and remove unused cache data only when analyses have stopped.
 
 ### Parameters
 

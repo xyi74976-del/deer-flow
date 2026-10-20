@@ -8,6 +8,14 @@ Cache identity includes input order, filesystem-encoded basenames, per-file cont
 digests, and a namespace version. Directory relocation alone does not change a
 readable input's identity. Bump the namespace if table-mapping semantics change.
 
+Build each cache in a private generation; close its writer before publishing a
+single manifest containing the generation and table map with `os.replace`.
+Actions always receive a read-only connection owned by `open_analysis_cache`.
+Validation failures rebuild without modifying an existing reader's generation.
+Delete unfinished private builds, but retain complete generations once manifest
+publication may have happened, including interruption immediately after replace.
+No automatic generation cleanup or source-file snapshot is provided.
+
 Regressions live under the repository's root tests directory. They use
 real DuckDB. Excel and CLI integration additionally run with an already installed
 official spatial extension via `DEERFLOW_TEST_SPATIAL_DIRECTORY`; default tests

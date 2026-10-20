@@ -244,12 +244,18 @@ After analysis:
 
 The script automatically caches loaded data to avoid re-parsing files on every call:
 
-- On first load, files are parsed and stored in a persistent DuckDB database under the system temporary directory (`.data-analysis-cache/`)
+- On first load, files are parsed in a private generation under the system temporary directory (`.data-analysis-cache/generations-v1/`). The writer closes before one manifest atomically publishes the completed database and table map together
 - The cache key hashes the ordered input basenames and a separate SHA256 digest of each file. Renaming, reordering, or changing inputs creates a new cache; moving unchanged, identically named inputs to another directory preserves reuse. The updated key namespace ignores older cached table maps, which are rebuilt on first use
-- Subsequent calls with the same files will use the cached database directly (near-instant startup)
+- Subsequent calls validate and reuse the published generation. Invalid manifests, missing databases, and inconsistent table maps trigger a fresh build without overwriting an active reader's database
+- Cold and warm actions both use read-only connections. Use SELECT, CTEs, and connection-local temporary views; export results with `--output-file` rather than modifying persistent cached tables
+- Older flat database and map caches are ignored and rebuilt. Concurrent cold calls may duplicate work and storage, but publish only complete generations. Old generations are retained for active readers; stop all analyses before manually clearing the cache directory
 - Cache is transparent — no extra parameters needed
 
 This is especially useful when running multiple queries against the same data files (inspect → query → summary).
+
+This is a rebuildable local cache, not a snapshot of concurrently changing input
+files. It does not add automatic garbage collection or guarantee durability
+across power loss or atomic replacement on network filesystems.
 
 ## Notes
 

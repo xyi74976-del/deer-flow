@@ -206,6 +206,9 @@ to reduce rate-limit failures, Volcengine uses 4 workers. There is no
 caller-facing concurrency knob; transient rate limits are handled by automatic
 retry with backoff.
 
-Numeric `Retry-After` delays from zero through 24 hours are honored with retry
+Numeric `Retry-After` delays from zero through 30 seconds are logged and honored with retry
 jitter. Malformed, negative, non-finite, or larger delays fall back to the local
 exponential backoff instead of aborting generation or waiting indefinitely.
+HTTP-date hints also use local backoff. Unlike model retries, this standalone
+script has no enclosing agent-turn deadline, so provider hints cannot extend the
+local 30-second ceiling (plus up to one second of jitter).

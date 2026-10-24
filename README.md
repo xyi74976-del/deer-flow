@@ -1362,7 +1362,7 @@ Disabling a skill also removes it from the sandbox filesystem view, so shell com
 └── lark-cli/lark-doc/SKILL.md      ← managed, read-only
 ```
 
-The built-in `podcast-generation` skill retries transient TTS failures with backoff. Invalid or excessive numeric `Retry-After` hints fall back to local backoff; finite delays from zero through 24 hours are honored with jitter.
+The built-in `podcast-generation` skill retries transient TTS failures with backoff. Invalid, HTTP-date, or excessive numeric `Retry-After` hints fall back to local backoff; finite delays from zero through 30 seconds are logged and honored with up to one second of jitter. This standalone worker has no enclosing agent-turn deadline, so provider hints cannot extend the local backoff ceiling.
 
 The built-in `image-generation` skill supports Gemini, MiniMax, and
 OpenAI-compatible Images APIs. Select the latter with

@@ -29,7 +29,11 @@ pod = load("podcast-generation")
         ("0", 0.0),
         ("2.5", 2.5),
         (" 10 ", 10.0),
-        ("86400", 86400.0),
+        ("30", 30.0),
+        ("30.001", None),
+        ("86399", None),
+        ("86400", None),
+        ("Wed, 21 Oct 2026 07:28:00 GMT", None),
     ],
 )
 def test_retry_after_rejects_unsafe_sleep_delays(header, expected):
@@ -41,7 +45,15 @@ def test_retry_after_rejects_unsafe_sleep_delays(header, expected):
 @pytest.mark.parametrize("provider", ["minimax", "volcengine"])
 @pytest.mark.parametrize(
     ("header", "expected_delay"),
-    [("-10", 1.25), ("nan", 1.25), ("inf", 1.25), ("1e300", 1.25), ("0", 0.25)],
+    [
+        ("-10", 1.25),
+        ("nan", 1.25),
+        ("inf", 1.25),
+        ("1e300", 1.25),
+        ("86399", 1.25),
+        ("30", 30.25),
+        ("0", 0.25),
+    ],
 )
 def test_podcast_recovers_from_rate_limit_with_unusable_or_zero_delay(
     tmp_path, monkeypatch, provider, header, expected_delay
@@ -57,7 +69,7 @@ def test_podcast_recovers_from_rate_limit_with_unusable_or_zero_delay(
     def checked_sleep(delay):
         # Reject precisely the values that real time.sleep cannot accept;
         # also keep tests from sleeping or admitting an unbounded delay.
-        assert math.isfinite(delay) and 0 <= delay <= 86401
+        assert math.isfinite(delay) and 0 <= delay <= 31
         sleeps.append(delay)
 
     monkeypatch.setattr(pod.time, "sleep", checked_sleep)
@@ -86,3 +98,13 @@ def test_podcast_recovers_from_rate_limit_with_unusable_or_zero_delay(
     assert output.read_bytes() == b"audio"
     assert "Successfully generated podcast" in result
     assert sleeps == [expected_delay]
+
+
+def test_honored_retry_after_is_logged(monkeypatch, caplog):
+    sleeps = []
+    monkeypatch.setattr(pod.time, "sleep", sleeps.append)
+    monkeypatch.setattr(pod.random, "uniform", lambda *args: 0.25)
+    with caplog.at_level("INFO", logger=pod.logger.name):
+        pod._backoff_sleep(0, 2.5)
+    assert sleeps == [2.75]
+    assert "Honoring Retry-After: 2.500s" in caplog.text

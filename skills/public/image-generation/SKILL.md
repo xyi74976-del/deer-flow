@@ -155,6 +155,10 @@ Read the following template file only when matching the user request.
 
 ## Output Handling
 
+Gemini image data is base64-decoded before the output directory or
+file is created. If decoding fails, an existing output image is preserved and no
+empty output file is left behind.
+
 After generation:
 
 - Images are typically saved in `/mnt/user-data/outputs/`
